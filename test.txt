@@ -9,6 +9,7 @@ ssh    git@github.com:may40229/test0728.git
 清空
 git init
 
+那個origin是預設節點
 git remote add origin <url>
 
 再上船前加一個暫存資料夾
@@ -24,9 +25,15 @@ $ git config --global user.name "Brian Kerr"
 每次提交時都附加一個消息
 git commit -m 'any message you want'
 
-提交到github 根源 master(分支的名字)
-git push origin master
+提交到github origin(節點名字) master(分支的名字)
+git push origin master，這一句等於git push origin master:master
+把本地master的東西推到儲存庫的master分支，沒有這個分支就新增一個。
 
+把master提交到github 根源 (新增一個分支，名字是cat)
+git push origin master:cat
+
+-------------------------------------------
+git push -u origin master
 =================================================
 第一次登入要設定帳號密碼
 # Running git config globally
