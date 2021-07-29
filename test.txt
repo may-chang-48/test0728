@@ -1,5 +1,5 @@
 you can see like this url https://github.com/may40229?<name>.git
-then
+the
 in file location you can git bash and type this:
 
 http   https://github.com/may40229/test0728.git

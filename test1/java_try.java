@@ -1,5 +1,0 @@
-import *;
-
-public main{
-	
-}
