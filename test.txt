@@ -12,7 +12,7 @@ git init
 那個origin是預設節點
 git remote add origin <url>
 
-再上船前加一個暫存資料夾
+再上船前加一個暫存資料夾，添加了全部的未暫存檔案
 git add .
 之後就把要上船的file一起 add
 
@@ -35,6 +35,20 @@ git push origin master:cat
 -------------------------------------------
 git push -u origin master
 =================================================
+切換目錄位置
+# change directory to codebase
+$ cd /file/path/to/code
+
+在本機建立一個git儲存庫空間
+# make directory a git repository
+$ git init
+----------------------------------------------------
+$ git add <file or directory name>
+
+加一個暫存資料夾，添加了全部的未暫存檔案
+# To add all files not staged:
+$ git add .
+----------------------------------------------------
 第一次登入要設定帳號密碼
 # Running git config globally
 $ git config --global user.email "my@emailaddress.com"
@@ -43,7 +57,10 @@ $ git config --global user.name "Brian Kerr"
 # Running git config on the current repository settings
 $ git config user.email "mchang@gtocad.com"
 $ git config user.name "may40229"
-
+----------------------------------------------------------
+加入訊息
+$ git commit -m "Commit message in quotes"
+-------------------------------------------------
 
 
 加分支
