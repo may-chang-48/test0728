@@ -1,76 +1,42 @@
-you can see like this url https://github.com/may40229?<name>.git
-the
-in file location you can git bash and type this:
+//用Linq直接組
+            var result = new
+            {
+                file = new {
+                    id = "132aa30a87064",	 			//文件id,字符串长度小于32
+                    name = "example.doc",				//文件名(必须带文件后缀)
+                    version = 1,				        //当前版本号，位数小于11
+                    size = 200,				        //文件大小，单位为B(文件真实大小，否则会出现异常)
+                    creator = "id0",			        	//创建者id，字符串长度小于32
+                    create_time = 1136185445,			//创建时间，时间戳，单位为秒
+                    modifier = "id1000",			    	//修改者id，字符串长度小于32
+                    modify_time = 1551409818,			//修改时间，时间戳，单位为秒
+                    download_url = "http=//www.xxx.cn/v1/file?fid=f132aa30a87064",  //文档下载地址
+                    preview_pages = 3,   //限制预览页数
+                    user_acl = new {
+                                rename = 1,     //重命名权限，1为打开该权限，0为关闭该权限，默认为0
+                        history = 1,    //历史版本权限，1为打开该权限，0为关闭该权限,默认为1
+                        copy = 1,       //复制
+                        export = 1,     //导出PDF
+                        print = 1       //打印
+                    },
+                    watermark =  new {
+                                type = 1,		 		//水印类型， 0为无水印； 1为文字水印
+                        value = "禁止传阅",  		          //文字水印的文字，当type为1时此字段必选
+                        fillstyle = "rgba( 192, 192, 192, 0.6 )",     //水印的透明度，非必选，有默认值
+                        font = "bold 20px Serif",		//水印的字体，非必选，有默认值
+                        rotate = -0.7853982,			//水印的旋转度，非必选，有默认值
+                        horizontal = 50,			 //水印水平间距，非必选，有默认值
+                        vertical = 100           //水印垂直间距，非必选，有默认值
+                    }
+                },
+                user = new {
+                            id = "id1000",				//用户id，长度小于32
+                    name = "wps-1000",			//用户名称
+                    permission = "read",			//用户操作权限，write：可编辑，read：预览
+                    avatar_url = "http=//xxx.cn/id=1000"    //用户头像地址
+                }
+            };
 
-http   https://github.com/may40229/test0728.git
-ssh    git@github.com:may40229/test0728.git
-
-
-清空
-git init
-
-那個origin是預設節點
-git remote add origin <url>
-
-再上船前加一個暫存資料夾，添加了全部的未暫存檔案
-git add .
-之後就把要上船的file一起 add
-
-使用者資訊
-# Running git config globally
-$ git config --global user.email "my@emailaddress.com"
-$ git config --global user.name "Brian Kerr"
-
-
-每次提交時都附加一個消息
-git commit -m 'any message you want'
-
-提交到github origin(節點名字) master(分支的名字)
-git push origin master，這一句等於git push origin master:master
-把本地master的東西推到儲存庫的master分支，沒有這個分支就新增一個。
-
-把master提交到github 根源 (新增一個分支，名字是cat)
-git push origin master:cat
-
--------------------------------------------
-git push -u origin master
-=================================================
-切換目錄位置
-# change directory to codebase
-$ cd /file/path/to/code
-
-在本機建立一個git儲存庫空間
-# make directory a git repository
-$ git init
-----------------------------------------------------
-$ git add <file or directory name>
-
-加一個暫存資料夾，添加了全部的未暫存檔案
-# To add all files not staged:
-$ git add .
-----------------------------------------------------
-第一次登入要設定帳號密碼
-# Running git config globally
-$ git config --global user.email "my@emailaddress.com"
-$ git config --global user.name "Brian Kerr"
-
-# Running git config on the current repository settings
-$ git config user.email "mchang@gtocad.com"
-$ git config user.name "may40229"
-----------------------------------------------------------
-加入訊息
-$ git commit -m "Commit message in quotes"
--------------------------------------------------
-
-
-加分支
-# Create a new branch
-$ git branch <branch_name>
-
-# List all remote or local branches
-$ git branch -a
-
-# Delete a branch
-$ git branch -d <branch_name>
-
-
+            //序列化為JSON字串並輸出結果
+            //Response.Write(JsonConvert.SerializeObject(result));
+            return Json(result, JsonRequestBehavior.AllowGet);
