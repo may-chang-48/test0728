@@ -1,27 +1,32 @@
 https://docs.google.com/document/d/1T7vFMUHMcjNCj36KvWsLW4mMa8tLls2n/edit?usp=sharing&ouid=108036346530264105990&rtpof=true&sd=true
-//用Linq直接組
+        public ActionResult view()
+        {
+            //用Linq直接組
             var result = new
             {
-                file = new {
-                    id = "132aa30a87064",	 			//文件id,字符串长度小于32
+                file = new
+                {
+                    id = "123abc",	 			//文件id,字符串长度小于32
                     name = "example.doc",				//文件名(必须带文件后缀)
                     version = 1,				        //当前版本号，位数小于11
-                    size = 200,				        //文件大小，单位为B(文件真实大小，否则会出现异常)
+                    size = 35328,				        //文件大小，单位为B(文件真实大小，否则会出现异常)
                     creator = "id0",			        	//创建者id，字符串长度小于32
                     create_time = 1136185445,			//创建时间，时间戳，单位为秒
                     modifier = "id1000",			    	//修改者id，字符串长度小于32
                     modify_time = 1551409818,			//修改时间，时间戳，单位为秒
-                    download_url = "http=//www.xxx.cn/v1/file?fid=f132aa30a87064",  //文档下载地址
+                    download_url = "https://tcmcrm.gtocad.com/file/example.doc",  //文档下载地址
                     preview_pages = 3,   //限制预览页数
-                    user_acl = new {
-                                rename = 1,     //重命名权限，1为打开该权限，0为关闭该权限，默认为0
+                    user_acl = new
+                    {
+                        rename = 1,     //重命名权限，1为打开该权限，0为关闭该权限，默认为0
                         history = 1,    //历史版本权限，1为打开该权限，0为关闭该权限,默认为1
                         copy = 1,       //复制
                         export = 1,     //导出PDF
                         print = 1       //打印
                     },
-                    watermark =  new {
-                                type = 1,		 		//水印类型， 0为无水印； 1为文字水印
+                    watermark = new
+                    {
+                        type = 1,		 		//水印类型， 0为无水印； 1为文字水印
                         value = "禁止传阅",  		          //文字水印的文字，当type为1时此字段必选
                         fillstyle = "rgba( 192, 192, 192, 0.6 )",     //水印的透明度，非必选，有默认值
                         font = "bold 20px Serif",		//水印的字体，非必选，有默认值
@@ -30,14 +35,21 @@ https://docs.google.com/document/d/1T7vFMUHMcjNCj36KvWsLW4mMa8tLls2n/edit?usp=sh
                         vertical = 100           //水印垂直间距，非必选，有默认值
                     }
                 },
-                user = new {
-                            id = "id1000",				//用户id，长度小于32
+                user = new
+                {
+                    id = "id1000",				//用户id，长度小于32
                     name = "wps-1000",			//用户名称
                     permission = "read",			//用户操作权限，write：可编辑，read：预览
                     avatar_url = "http=//xxx.cn/id=1000"    //用户头像地址
                 }
             };
+            DateTime thisDate = DateTime.Now;
+            logger.Info("Come here get metadata"+thisDate.ToString());
 
             //序列化為JSON字串並輸出結果
             //Response.Write(JsonConvert.SerializeObject(result));
             return Json(result, JsonRequestBehavior.AllowGet);
+
+            
+            //return View();
+        }
