@@ -1,3 +1,4 @@
+https://docs.google.com/document/d/1T7vFMUHMcjNCj36KvWsLW4mMa8tLls2n/edit?usp=sharing&ouid=108036346530264105990&rtpof=true&sd=true
 //用Linq直接組
             var result = new
             {
