@@ -14,7 +14,7 @@ https://docs.google.com/document/d/1mVKoFrz3w1hYfgcB7jAg88IQpHzb2nIe/edit?usp=sh
                     create_time = 1136185445,			//创建时间，时间戳，单位为秒
                     modifier = "id1000",			    	//修改者id，字符串长度小于32
                     modify_time = 1551409818,			//修改时间，时间戳，单位为秒
-                    download_url = "https://tcmcrm.gtocad.com/file/example.doc",  //文档下载地址
+                    download_url = "https://tcmcrm.gtocad.com/file/Aras課程_Part1-安裝.docx",  //文档下载地址
                     preview_pages = 3,   //限制预览页数
                     user_acl = new
                     {
