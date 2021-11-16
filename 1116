@@ -1,0 +1,117 @@
+@{
+    ViewBag.Title = "Home Page";
+}
+<head>
+    <meta charset="utf-8">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script><!--安裝axios-->
+</head>
+
+<div id="app">
+    <div>
+        @*app_token: {{app_token}}<br />
+            app_expires_in: {{app_expires_in}}<br />
+            app_id: {{app_id}}<br />
+            app_key:{{app_key}}<br />
+            <p v-if="app_token!=''">
+                token取得時間: @Session["date"]
+            </p>
+            <div class="row">
+                <div class="col-md-4">
+                    <h2>應用管理</h2>
+                    <ul>
+                        <li>@Html.ActionLink("1.創建應用", "CreatApp", "WPSapi")</li>
+                        <li>@Html.ActionLink("2. 獲取應用基本信息", "AppInfo", "WPSapi")</li>
+                        <li>3. 修改应用基本信息</li>
+                        <li>4. 删除应用</li>
+                        <li>5. 重置应用key</li>
+                        <li>@Html.ActionLink("6. 獲取應用key", "Appkey", "WPSapi")</li>
+                        <li>@Html.ActionLink("7. 獲取應用IP白名單", "WhitelistInfo", "WPSapi")</li>
+                        <li>8. 添加应用IP白名单</li>
+                        <li>9. 删除应用IP白名单</li>
+                        <li>10. 修改应用在线编辑配置</li>
+                        <li>@Html.ActionLink("11. 獲取應用在線編輯配置", "EditInfo", "WPSapi")</li>
+                        <li>12. 修改应用在线预览配置</li>
+                        <li>@Html.ActionLink("13. 獲取應用在線預覽配置", "PreviewInfo", "WPSapi")</li>
+                        <li>14. 修改应用格式处理配置</li>
+                        <li>@Html.ActionLink("15. 獲取應用格式處理配置", "FormatInfo", "WPSapi")</li>
+                        <li>16. 获取某个服务商下的应用列表</li>
+                        <li>17. 获取应用所能申请的功能列表</li>
+                        <li>18. 为某个应用获取某个能力</li>
+                        <li>19. 获取应用的功能列表</li>
+                        <li>@Html.ActionLink("20. 獲取licence信息", "Licence", "WPSapi")</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h2>應用授權</h2>
+                    <ul>
+                        <li>@Html.ActionLink("應用獲取app_token", "AppToken", "WPSapi")</li>
+                </ul>
+                </div>
+                <div class="col-md-4">
+                    <h2>開放能力</h2>
+                    <ul>
+                        <li>@Html.ActionLink("在線預覽-獲取預覽鏈接", "PreviewLink", "WPSapi")</li>
+                        <li>@Html.ActionLink("在線編輯-獲取在線編輯鏈接", "EditLink", "WPSapi")</li>
+                    </ul>
+                </div>
+            </div>*@
+    </div>
+    @*<div id="alert_box">
+        <div v-if="link!=''" class="alert alert-success alert-dismissible alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            5秒後跳至預覽介面
+        </div>
+    </div>*@
+
+    <div>
+        <iframe allow="camera; microphone; fullscreen; display-capture; autoplay" src="https://meet.gtocad.com/WPS" style="height: 720px; width: 100%; border: 0px;"></iframe>
+        <button class="btn btn-primary btn-lg" v-on:click="preview">預覽檔案 @*@Html.ActionLink("預覽檔案", "get_PreviewLink", "WPSapi")*@<span class="glyphicon glyphicon-send"></span></button>
+    </div>
+
+
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            app_token: '@Session["token"]',
+            app_expires_in: '@Session["expires_in"]',
+            @*app_id: '@Session["app_id"]',
+            app_key:'@Session["app_key"]',*@
+            link:"",
+        },
+        methods: {
+            preview: function () {
+                var self = this;
+                axios({
+                    method: 'post',
+                    data: {
+                    },
+                    url: '/WPSapi/get_PreviewLink'
+                }).then(function (response) {
+                    var allData = response.data;
+                    if (allData != "Error") {
+                        var url = allData;
+                        self.link = allData;
+                        setTimeout(() => {
+                            //location.href = url;
+                           
+                        }, 3000);
+                        window.open(url, '_blank', config = "height = 520px, width = 520");
+                        //setTimeout("javascript:location.href='" + url + "'", 5000);
+                        console.log(allData);
+                    }
+                    else {
+                        console.log("error");
+                    }
+                }).catch(function (error) {
+                    console.log(error);
+                })
+            },
+        }
+    })
+</script>
