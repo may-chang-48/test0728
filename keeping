@@ -1,151 +1,77 @@
-using Newtonsoft.Json.Linq;
-using RestSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Web;
-using System.Web.Mvc;
 
-namespace wpsApp.Controllers
-{
-    public class ArasApiController : Controller
-    {
-        // GET: ArasApi
-        public ActionResult openfile()
-        {
-            var uri = "/auth/v1/app/inscope/token?app_id=" + Constants.app_id + "&scope=" + Constants.scope;
-            var token_result = WPS3Sign_get(uri);
-            dynamic data = JObject.Parse(token_result);
-
-            var status = data.result.ToString();
-            var msg = data.msg;
-            var result = data.result;
-
-            if (status == "0")
-            {
-                Session["token"] = data.token.app_token;
-                Session["expires_in"] = data.token.expires_in;
-                var url = get_PreviewLink(Session["token"].ToString());
-                Response.Redirect(url,false);
-            }
-            else
-            {
-                return Content(token_result);
-            }
-            return View();
-        }
-        public static string get_PreviewLink(string token)
-        {            
-            if (token == "")
-            {
-                return "Error";
-            }
-            else
-            {
-                var uri = "/preview/v1/url?app_token=" + token + "&file_id=ECAA870DBEC74CF59&scene_id=" + Constants.developer_id;//+"&_w_tokentype=1" ;
-
-                var PreviewLink_result = WPS3Sign_get(uri);
-                dynamic data = JObject.Parse(PreviewLink_result);
-
-                var status = data.result.ToString();
-                var msg = data.msg;
-                var result = data.result;
-
-                if (status == "0")
-                {
-                    var link = data.url.ToString();
-                   
-                    return link;                    
-                }
-                else
-                {
-                    //return Content(PreviewLink_result);
-                    return "Error";
-                }
-            }
-        }
-        public class Constants
-        {
-            internal const string WPS_URL = "https://wps.gtocad.com/open";
-            internal const string app_id = "SX20211021YXXAAI";
-            internal const string app_key = "49c45d37fbd6159471652b88de8842d4";
-            internal const string scope = "file_preview,file_edit,file_format_control";
-
-            internal const string Content_Type = "application/json";
-            internal const Int64 developer_id = 2110191153010763;
-            internal const string super_admin = "WPS_1634284339";
-            internal const string super_admin_id = "1";
-        }
-        public static string WPS3Sign_get(string uri)//sccess 
-        {
-
-            var Url2 = Constants.WPS_URL + uri;
-            Uri url = new Uri(Url2);
-
-            DateTime thisDate1 = DateTime.Now;
-            string Date = thisDate1.ToUniversalTime().ToString("r");//格式: Wed, 23 Jan 2013 06:43:08 GMT
-
-            byte[] source = Encoding.Default.GetBytes("");
-            string md5 = get_md5(source);
-            string sha1 = get_sha1(Constants.app_key, md5, url, Constants.Content_Type, Date);
-
-            var sign = "WPS-3:" + Constants.app_id + ":" + sha1.ToLower();
-
-            var client = new RestClient(Url2);
-            client.Timeout = -1;
-            var request = new RestRequest(Method.GET);
-            request.AddHeader("Content-Type", "application/json");
-            request.AddHeader("X-Auth", sign);
-            request.AddHeader("Content-MD5", md5);
-            request.AddHeader("Date", Date);
-            IRestResponse response = client.Execute(request);
-
-            return response.Content;
-        }
-
-        public static string get_md5(byte[] body)// md5加密
-        {
-            MD5 MD5_f = MD5.Create();
-            string contentMd5;
-            if (body != null && body.Length > 0)
-            {
-                //byte[] source = Encoding.Default.GetBytes(body);//將字串轉為Byte[]
-                byte[] source = body;
-                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
-                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
-            }
-            else
-            {
-                byte[] source = Encoding.Default.GetBytes("");
-                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
-                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
-            }
-            return contentMd5;
-        }
-        public static string get_sha1(string appKey, string contentMd5, Uri request_url, string contentType, string date) //Sha1加密
-        {
-            string path = request_url.LocalPath;
-            if (path.StartsWith("/open"))
-            {
-                path = path.Replace("/open", "");
-            }
-
-            string url = path;
-            string query = request_url.Query;
-            if (query != null)
-            {
-                url += query;
-            }
-            SHA1 sha1 = new SHA1CryptoServiceProvider();//建立一個SHA1
-            var str = appKey + contentMd5 + url + contentType + date;
-            byte[] source2 = Encoding.UTF8.GetBytes(str);//將字串轉為Byte[]
-            byte[] crypto2 = sha1.ComputeHash(source2);//進行SHA1加密
-            string result = BitConverter.ToString(crypto2).Replace("-", String.Empty);
-
-            return result;
-        }
-
-    }
+@{
+    ViewBag.Title = "aras_openfile";
 }
+
+<h2>aras_openfile</h2>
+<head>
+    <meta charset="utf-8">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+    <!--<script src="https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"></script>--><!--router-->
+    @*<script src="https://cdnjs.cloudflare.com/ajax/libs/vue-router/4.0.12/vue-router.min.js" integrity="sha512-/QcUyef9r0LQzC+WtTNs+gJNacB+x20p1ZaPKSldF9Vu3m+uOmz0bBpPpsmHncv1ehuOCwnMXYydvl1KkW7Xow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>*@
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script><!--安裝axios-->
+</head>
+<div id="app">
+    token: @Session["token"]<br />
+    Link:@ViewBag.link<br />
+    <button v-on:click="open_p">open</button>
+    <div>
+        <hr />
+        {{json_link}}
+    </div>
+</div>
+<script>
+    const router = new VueRouter({
+        mode: 'history',
+        routes: []
+    });
+    var app = new Vue({
+        router,
+        el: "#app",
+        data: {
+            doc_id: '',
+            doc_url: '',
+            fileId: '',
+            fileName: '',
+            vaultId: '',
+            aras_token: '',
+            json_link: '',
+            pLink: '' ,
+        },
+        mounted: function () {
+            var self = this;
+            var id = self.$route.query.doc_id;
+            var url = self.$route.query.doc_url;
+            var fileId = self.$route.query.fileId;
+            var fileName = self.$route.query.fileName;
+            var vaultId = self.$route.query.vaultId;
+            var token = self.$route.query.token;
+            self.doc_id = id;
+            var js_link = "https://wpsapp.gtocad.com/Preview/File_3rd?_w_third_appid=SX20211117GRDMNZ&_w_third_file_id=" + fileId + "&_w_third_aras_url=" + url + "&_w_third_aras_fileId=" + fileId + "&_w_third_aras_fileName=" + fileName + "&_w_third_aras_vaultId=" + vaultId + "&_w_third_aras_token=" + token;
+            self.doc_url = url;
+            self.fileId = fileId;
+            self.fileName = fileName;
+            self.vaultId = vaultId;
+            self.aras_token = token;
+            self.json_link = js_link;
+            self.pLink = '@ViewBag.link';
+        },
+        watch: {
+
+        },
+        methods: {
+            get_json: function () {
+                var self = this;
+
+            },
+            open_p: function () {
+                window.open(this.pLink, '_blank', config = "height = 520px, width = 520");
+            },
+
+        },
+    })
+</script>
