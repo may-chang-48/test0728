@@ -1,77 +1,495 @@
+using Aras.IOM;
+using Newtonsoft.Json.Linq;
+using RestSharp;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Web;
+using System.Web.Mvc;
+using NLog;
 
-@{
-    ViewBag.Title = "aras_openfile";
+namespace wpsApp.Controllers
+{
+    public class PreviewController : Controller
+    {
+        // GET: Preview
+        private NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+        public class AppInfo2
+        {
+            internal const string WPS_URL = "https://wps.gtocad.com/open";
+            internal const string app_id = "SX20211117GRDMNZ";
+            internal const string app_key = "d20f57d6f4c424fe1207b1012d1ec41e";
+            internal const string scope = "file_preview,file_edit,file_format_control";
+
+            internal const string Content_Type = "application/json";
+            internal const Int64 developer_id = 2110191153010763;
+            internal const string super_admin = "WPS_1634284339";
+            internal const string super_admin_id = "1";
+        }
+
+        public ActionResult aras_openfile()//ing...  make token 
+        {
+            logger.Info("打開");
+            string doc_id = Request.QueryString["doc_id"];
+            string doc_url = Request.QueryString["doc_url"];// this get aras ur;
+            //doc_url = System.Web.HttpUtility.UrlEncode(doc_url, System.Text.Encoding.UTF8);
+            // 以下為 被分開的uri參數
+            string fileId = Request.QueryString["fileId"];
+            //fileId = System.Web.HttpUtility.UrlEncode(fileId, System.Text.Encoding.UTF8);
+            var fileName = Request.QueryString["fileName"];
+            //fileName = System.Web.HttpUtility.UrlEncode(fileName, System.Text.Encoding.UTF8);
+            var vaultId = Request.QueryString["vaultId"];
+            //vaultId = System.Web.HttpUtility.UrlEncode(vaultId, System.Text.Encoding.UTF8);
+            var a_token = Request.QueryString["token"];
+            //a_token = System.Web.HttpUtility.UrlEncode(a_token, System.Text.Encoding.UTF8);
+            //var file_uri = doc_url + "?fileId=" + fileId + "&fileName=" + fileName + "&vaultId=" + vaultId + "&token=" + token;
+
+            //make token
+            var uri = "/auth/v1/app/inscope/token?app_id=" + AppInfo2.app_id + "&scope=" + AppInfo2.scope;
+            var token_result = WPS3Sign_get(uri);
+            dynamic data = JObject.Parse(token_result);
+
+            var status = data.result.ToString();
+            var msg = data.msg;
+            var result = data.result;
+
+            DateTime thisDate = DateTime.Now;
+            logger.Debug("被呼叫，打開文件");
+            logger.Debug(" 日期:" + thisDate + " 傳入的query: fileId=" + doc_id + "&&aras_token=" + a_token);
+
+            if (status == "0")
+            {
+                Session["token"] = data.token.app_token;
+                Session["expires_in"] = data.token.expires_in;
+                var url = aras_PreviewLink(Session["token"].ToString(), doc_id, doc_url, fileId, fileName, vaultId, a_token);
+                if (url != "Error")
+                {
+                    ViewBag.link = url;
+
+                    return View();
+                    // Response.Redirect(url, false);
+                }
+                else if (url == "token_Error")
+                {
+                    return Content("not get token");
+                }
+                else
+                {
+                    return Content("Error");
+                }
+            }
+            else
+            {
+                return Content(token_result);
+            }
+            return null;
+        }
+        public static string aras_PreviewLink(string token, string doc_id, string doc_url, string fileId, string fileName, string vaultId, string aras_token)//ing... make previewLink
+        {
+            if (token == "")
+            {
+                return "token_Error";
+            }
+            else
+            {
+                var uri = "/preview/v1/url?app_token=" + token + "&file_id=" + doc_id + "&scene_id=" + AppInfo2.developer_id + "&_w_third_aras_url=" + doc_url + "&_w_third_aras_fileName=" + fileName + "&_w_third_aras_vaultId=" + vaultId + "&_w_third_aras_token=" + aras_token;//+"&_w_tokentype=1" ;
+
+                var PreviewLink_result = WPS3Sign_get(uri);
+                dynamic data = JObject.Parse(PreviewLink_result);
+
+                var status = data.result.ToString();
+                var msg = data.msg;
+                var result = data.result;
+                
+                if (status == "0")
+                {
+                    var link = data.url.ToString();
+                   
+                    return link;
+                    //return PreviewLink_result;
+                }
+                else
+                {
+                    //return Content(PreviewLink_result);
+                    return "Error";
+                }
+            }
+        }
+        public ActionResult File_3rd()//ing... callback Api 
+        {
+            DateTime thisDate = DateTime.Now;
+            
+            //先抓參數 _w_third_file_id, 還要有下載url
+            //登入Aras，用file_id去抓 info
+            // 處理 下載Url 中文
+            //製造 json
+            // 回傳json
+
+            string doc_id = Request.QueryString["_w_third_file_id"];
+            string doc_url = Request.QueryString["_w_third_aras_url"];// this get aras ur;
+
+            // 以下為 被分開的uri參數
+            string fileId = Request.QueryString["_w_third_aras_fileId"];
+            var fileName = Request.QueryString["_w_third_aras_fileName"];
+            var vaultId = Request.QueryString["_w_third_aras_vaultId"];
+            var token = Request.QueryString["_w_third_aras_token"];
+
+            var uri = doc_url + "&fileId=" + fileId + "&fileName=" + fileName + "&vaultId=" + vaultId + "&token=" + token;
+
+            HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://crm.gtocad.com/crm", "EDUatCRM", "root", "Aa123456!");
+            //HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://tccrm.gtocad.com/crm", "NewCRM", "root", "Aa123456!");
+            Item login_result = cnx.Login();
+
+            var inn = IomFactory.CreateInnovator(cnx);
+            //var aras_File = inn.getItemById("4E844D788CA6490BBC92E089A0B97D6E", "get");
+            Item f_get = inn.newItem("File", "get");
+            f_get.setProperty("id", doc_id);
+            f_get = f_get.apply();
+
+            var name = f_get.getProperty("filename", "");
+            var version = f_get.getProperty("generation", "");
+            var size = f_get.getProperty("file_size", "");
+
+            var creator = f_get.getProperty("created_by_id", "");
+
+            var a_create_time = f_get.getProperty("created_on", "");
+            DateTimeOffset createDate = Convert.ToDateTime(a_create_time);
+            long create_time = createDate.ToUnixTimeMilliseconds();
+
+            var modifier = f_get.getProperty("modified_by_id", "");
+            var a_modify_time = f_get.getProperty("modified_on", "");
+            DateTimeOffset modifyDate = Convert.ToDateTime(a_modify_time);
+            long modify_time = modifyDate.ToUnixTimeMilliseconds();
+
+            string uID = login_result.getInnovator().getUserID();
+            string uName = login_result.getInnovator().getItemById("User", uID).getProperty("keyed_name", "");
+
+            //var rest_id = "";
+            //for (int i = 3; i < fileId.Length; i++)
+            //{
+            //    rest_id += fileId[i];
+            //}
+            //var uri = "C:\\Aras\\Vault\\EDUatCRM\\" + fileId[0] + "\\" + fileId[1]+ fileId[2]+"\\"+ rest_id+"\\"+name;
+            //用Linq直接組
+            var result = new
+            {
+                file = new
+                {
+                    id = doc_id,	 			//文件id,字串長度小於32
+                    name = name,				//文件名(必須帶文件後綴)
+                    version = version,				        //當前版本號，位數小於11
+                    size = size,				        //文件大小，單位為B(文件真實大小，否則會出現異常)
+                    creator = creator,			        	//創建者id，字符串長度小於32
+                    create_time = create_time,			//創建時間，時間戳，單位為秒
+                    modifier = modifier,			    	//修改者id，字符串長度小於32
+                    modify_time = modify_time,			//修改時間，時間戳，單位為秒
+                    download_url = uri,  //文檔下載地址
+                    preview_pages = 3,   //限制預覽頁數
+
+                    user_acl = new
+                    {
+                        rename = 1,     //重命名權限，1為打開該權限，0為關閉該權限，默認為0
+                        history = 1,    //歷史版本權限，1為打開該權限，0為關閉該權限,默認為1
+                        copy = 1,       //複製
+                        export = 1,     //導出PDF
+                        print = 1       //列印
+                    },
+                    watermark = new
+                    {
+                        type = 1,		 		//浮水印類型， 0為無水印； 1為文字水印
+                        value = "禁止傳閱",  		          //文字水印的文字，當type為1時此字段必選
+                        fillstyle = "rgba( 192, 192, 192, 0.6 )",     //水印的透明度，非必選，有默認值
+                        font = "bold 20px Serif",		//水印的字體，非必選，有默認值
+                        rotate = -0.7853982,			//水印的旋轉度，非必選，有默認值
+                        horizontal = 50,			 //水印水平間距，非必選，有默認值
+                        vertical = 100           //水印垂直間距，非必選，有默認值
+                    }
+                },
+                user = new
+                {
+                    id = uID,				//用戶id，長度小於32
+                    name = uName,			//用戶名稱
+                    permission = "read",			//用戶操作權限，write：可編輯，read：預覽
+                    avatar_url = "http=//xxx.cn/id=1000"    //用戶頭像地址
+                }
+            };
+
+            logger.Debug("被呼叫，回傳json 日期:" + thisDate + " 傳入的query: _w_third_aras_fileId=" + doc_id + "&&_w_third_aras_url=" + uri);
+
+            //序列化為JSON字串並輸出結果
+            //Response.Write(JsonConvert.SerializeObject(result));
+            return Json(result, JsonRequestBehavior.AllowGet);
+
+            //return Content(uri);
+        }
+
+
+
+
+        public ActionResult aras_downloadFile2()//ing...  make token 
+        {
+            string doc_id = Request.QueryString["doc_id"];            
+
+            HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://tccrm.gtocad.com/crm", "NewCRM", "root", "Aa123456!");
+            Item login_result = cnx.Login();
+
+            var inn = IomFactory.CreateInnovator(cnx);
+               
+            Item f_get = inn.newItem("File", "get");
+            f_get.setProperty("id", doc_id);
+            var aras_result = f_get.apply();
+
+            var FileCheck = aras_result.checkout(Server.MapPath("~/Content/file/"));
+            logger.Info("下載檔案 : "+doc_id);
+            return Json(FileCheck, JsonRequestBehavior.AllowGet);
+            //return Content("aras");
+            
+        }
+        public ActionResult aras_openfile2()//ing...  make token 
+        {
+            
+            string doc_id = Request.QueryString["doc_id"];
+           
+
+            //make token
+            var uri = "/auth/v1/app/inscope/token?app_id=" + AppInfo2.app_id + "&scope=" + AppInfo2.scope;
+            var token_result = WPS3Sign_get(uri);
+            dynamic data = JObject.Parse(token_result);
+
+            var status = data.result.ToString();
+            var msg = data.msg;
+            var result = data.result;
+
+            DateTime thisDate = DateTime.Now;
+            logger.Debug("被呼叫2，打開文件");
+            logger.Debug(" 日期:" + thisDate + " 傳入的query: fileId=" + doc_id);
+
+            if (status == "0")
+            {
+                Session["token"] = data.token.app_token;
+                Session["expires_in"] = data.token.expires_in;
+                var url = aras_PreviewLink2(Session["token"].ToString(), doc_id);
+                if (url != "Error")
+                {
+                    ViewBag.link = url;
+
+                    return View();
+                    // Response.Redirect(url, false);
+                }
+                else if (url == "token_Error")
+                {
+                    return Content("not get token");
+                }
+                else
+                {
+                    return Content("Error");
+                }
+
+
+                return Content("aras");
+            }
+            else
+            {
+                return Content(token_result);
+            }
+            return null;
+        }
+
+        public static string aras_PreviewLink2(string token, string doc_id)//ing... make previewLink
+        {
+            if (token == "")
+            {
+                return "token_Error";
+            }
+            else
+            {
+                var uri = "/preview/v1/url?app_token=" + token + "&file_id=" + doc_id + "&scene_id=" + AppInfo2.developer_id;//+"&_w_tokentype=1" ;
+
+                var PreviewLink_result = WPS3Sign_get(uri);
+                dynamic data = JObject.Parse(PreviewLink_result);
+
+                var status = data.result.ToString();
+                var msg = data.msg;
+                var result = data.result;
+
+                if (status == "0")
+                {
+                    var link = data.url.ToString();
+
+                    return link;
+                    //return PreviewLink_result;
+                }
+                else
+                {
+                    //return Content(PreviewLink_result);
+                    return "Error";
+                }
+            }
+        }
+        public ActionResult File_3rd2()//ing... callback Api 
+        {
+            DateTime thisDate = DateTime.Now;
+
+            string doc_id = Request.QueryString["_w_third_file_id"];
+                        
+            HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://tccrm.gtocad.com/crm", "EDUatCRM", "root", "Aa123456!");
+            Item login_result = cnx.Login();
+
+            var inn = IomFactory.CreateInnovator(cnx);
+            
+            Item f_get = inn.newItem("File", "get");
+            f_get.setProperty("id", doc_id);
+            f_get = f_get.apply();
+
+            var name = f_get.getProperty("filename", "");
+            var version = f_get.getProperty("generation", "");
+            var size = f_get.getProperty("file_size", "");
+
+            var creator = f_get.getProperty("created_by_id", "");
+
+            var a_create_time = f_get.getProperty("created_on", "");
+            DateTimeOffset createDate = Convert.ToDateTime(a_create_time);
+            long create_time = createDate.ToUnixTimeMilliseconds();//turn to seconds
+
+            var modifier = f_get.getProperty("modified_by_id", "");
+
+            var a_modify_time = f_get.getProperty("modified_on", "");
+            DateTimeOffset modifyDate = Convert.ToDateTime(a_modify_time);
+            long modify_time = modifyDate.ToUnixTimeMilliseconds();//turn to second
+
+            string uID = login_result.getInnovator().getUserID();
+            string uName = login_result.getInnovator().getItemById("User", uID).getProperty("keyed_name", "");
+
+            var uri = "https://wpsapp.gtocad.com/Content/file/" + name;
+           //用Linq直接組
+            var result = new
+            {
+                file = new
+                {
+                    id = doc_id,	 			//文件id,字串長度小於32
+                    name = name,				//文件名(必須帶文件後綴)
+                    version = version,				        //當前版本號，位數小於11
+                    size = size,				        //文件大小，單位為B(文件真實大小，否則會出現異常)
+                    creator = creator,			        	//創建者id，字符串長度小於32
+                    create_time = create_time,			//創建時間，時間戳，單位為秒
+                    modifier = modifier,			    	//修改者id，字符串長度小於32
+                    modify_time = modify_time,			//修改時間，時間戳，單位為秒
+                    download_url = uri,  //文檔下載地址
+                    preview_pages = 3,   //限制預覽頁數
+
+                    user_acl = new
+                    {
+                        rename = 1,     //重命名權限，1為打開該權限，0為關閉該權限，默認為0
+                        history = 1,    //歷史版本權限，1為打開該權限，0為關閉該權限,默認為1
+                        copy = 1,       //複製
+                        export = 1,     //導出PDF
+                        print = 1       //列印
+                    },
+                    watermark = new
+                    {
+                        type = 1,		 		//浮水印類型， 0為無水印； 1為文字水印
+                        value = "禁止傳閱",  		          //文字水印的文字，當type為1時此字段必選
+                        fillstyle = "rgba( 192, 192, 192, 0.6 )",     //水印的透明度，非必選，有默認值
+                        font = "bold 20px Serif",		//水印的字體，非必選，有默認值
+                        rotate = -0.7853982,			//水印的旋轉度，非必選，有默認值
+                        horizontal = 50,			 //水印水平間距，非必選，有默認值
+                        vertical = 100           //水印垂直間距，非必選，有默認值
+                    }
+                }
+                //,
+                //user = new
+                //{
+                //    id = uID,				//用戶id，長度小於32
+                //    name = uName,			//用戶名稱
+                //    permission = "read",			//用戶操作權限，write：可編輯，read：預覽
+                //    avatar_url = "http=//xxx.cn/id=1000"    //用戶頭像地址
+                //}
+            };
+
+            logger.Debug("被呼叫，回傳json 日期:" + thisDate + " 傳入的query: _w_third_aras_fileId=" + doc_id + "&&_w_third_aras_url=" + uri);
+
+            //序列化為JSON字串並輸出結果
+            //Response.Write(JsonConvert.SerializeObject(result));
+            return Json(result, JsonRequestBehavior.AllowGet);
+
+            //return Content(uri);
+        }
+
+
+        public static string WPS3Sign_get(string uri)//sccess 
+        {
+
+            var Url2 = AppInfo2.WPS_URL + uri;
+            Uri url = new Uri(Url2);
+
+            DateTime thisDate1 = DateTime.Now;
+            string Date = thisDate1.ToUniversalTime().ToString("r");//格式: Wed, 23 Jan 2013 06:43:08 GMT
+
+            byte[] source = Encoding.Default.GetBytes("");
+            string md5 = get_md5(source);
+            string sha1 = get_sha1(AppInfo2.app_key, md5, url, AppInfo2.Content_Type, Date);
+
+            var sign = "WPS-3:" + AppInfo2.app_id + ":" + sha1.ToLower();
+
+            var client = new RestClient(Url2);
+            client.Timeout = -1;
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("X-Auth", sign);
+            request.AddHeader("Content-MD5", md5);
+            request.AddHeader("Date", Date);
+            IRestResponse response = client.Execute(request);
+
+            return response.Content;
+        }
+
+        public static string get_md5(byte[] body)// md5加密
+        {
+            MD5 MD5_f = MD5.Create();
+            string contentMd5;
+            if (body != null && body.Length > 0)
+            {
+                //byte[] source = Encoding.Default.GetBytes(body);//將字串轉為Byte[]
+                byte[] source = body;
+                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
+                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
+            }
+            else
+            {
+                byte[] source = Encoding.Default.GetBytes("");
+                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
+                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
+            }
+            return contentMd5;
+        }
+        public static string get_sha1(string appKey, string contentMd5, Uri request_url, string contentType, string date) //Sha1加密
+        {
+            string path = request_url.LocalPath;
+            if (path.StartsWith("/open"))
+            {
+                path = path.Replace("/open", "");
+            }
+
+            string url = path;
+            string query = request_url.Query;
+            if (query != null)
+            {
+                url += query;
+            }
+            SHA1 sha1 = new SHA1CryptoServiceProvider();//建立一個SHA1
+            var str = appKey + contentMd5 + url + contentType + date;
+            byte[] source2 = Encoding.UTF8.GetBytes(str);//將字串轉為Byte[]
+            byte[] crypto2 = sha1.ComputeHash(source2);//進行SHA1加密
+            string result = BitConverter.ToString(crypto2).Replace("-", String.Empty);
+
+            return result;
+        }
+
+        public ActionResult Index()
+        {
+            return View();
+        }
+    }
 }
-
-<h2>aras_openfile</h2>
-<head>
-    <meta charset="utf-8">
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
-    <!--<script src="https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"></script>--><!--router-->
-    @*<script src="https://cdnjs.cloudflare.com/ajax/libs/vue-router/4.0.12/vue-router.min.js" integrity="sha512-/QcUyef9r0LQzC+WtTNs+gJNacB+x20p1ZaPKSldF9Vu3m+uOmz0bBpPpsmHncv1ehuOCwnMXYydvl1KkW7Xow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>*@
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script><!--安裝axios-->
-</head>
-<div id="app">
-    token: @Session["token"]<br />
-    Link:@ViewBag.link<br />
-    <button v-on:click="open_p">open</button>
-    <div>
-        <hr />
-        {{json_link}}
-    </div>
-</div>
-<script>
-    const router = new VueRouter({
-        mode: 'history',
-        routes: []
-    });
-    var app = new Vue({
-        router,
-        el: "#app",
-        data: {
-            doc_id: '',
-            doc_url: '',
-            fileId: '',
-            fileName: '',
-            vaultId: '',
-            aras_token: '',
-            json_link: '',
-            pLink: '' ,
-        },
-        mounted: function () {
-            var self = this;
-            var id = self.$route.query.doc_id;
-            var url = self.$route.query.doc_url;
-            var fileId = self.$route.query.fileId;
-            var fileName = self.$route.query.fileName;
-            var vaultId = self.$route.query.vaultId;
-            var token = self.$route.query.token;
-            self.doc_id = id;
-            var js_link = "https://wpsapp.gtocad.com/Preview/File_3rd?_w_third_appid=SX20211117GRDMNZ&_w_third_file_id=" + fileId + "&_w_third_aras_url=" + url + "&_w_third_aras_fileId=" + fileId + "&_w_third_aras_fileName=" + fileName + "&_w_third_aras_vaultId=" + vaultId + "&_w_third_aras_token=" + token;
-            self.doc_url = url;
-            self.fileId = fileId;
-            self.fileName = fileName;
-            self.vaultId = vaultId;
-            self.aras_token = token;
-            self.json_link = js_link;
-            self.pLink = '@ViewBag.link';
-        },
-        watch: {
-
-        },
-        methods: {
-            get_json: function () {
-                var self = this;
-
-            },
-            open_p: function () {
-                window.open(this.pLink, '_blank', config = "height = 520px, width = 520");
-            },
-
-        },
-    })
-</script>
