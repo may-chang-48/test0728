@@ -1,0 +1,305 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using System.Security.Cryptography;
+using System.Text;
+using Aras.IOM;
+using Newtonsoft.Json.Linq;
+using RestSharp;
+
+namespace wpsApp.Controllers
+{
+    public class WPSoauthController : Controller
+    {
+        // GET: WPSoauth
+        private NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+        public class AppInfo3
+        {
+            internal const string WPS_URL = "https://wps.gtocad.com/open";
+            internal const string app_id = "AK20211129ZVTVVI";
+            internal const string app_key = "a75b7c2594f4b7e24ec8d3c8c98210d3";
+            internal const string scope = "file_preview,file_edit,file_format_control";
+
+            internal const string Content_Type = "application/json";
+            internal const Int64 developer_id = 2110191153010763;
+            internal const string super_admin = "WPS_1634284339";
+            internal const string super_admin_id = "1";
+        }
+
+        public ActionResult openfile()// make app_token & make p_link 
+        {
+            string doc_id = Request.QueryString["doc_id"];
+            var doc_url = Request.QueryString["doc_url"];// this get aras ur;
+            // 以下為 被分開的uri參數
+            string fileId = Request.QueryString["fileId"];
+            var fileName = Request.QueryString["fileName"];
+            var vaultId = Request.QueryString["vaultId"];
+            var a_token = Request.QueryString["token"];
+
+            //make app_token
+            var uri = "/auth/v1/app/inscope/token?app_id=" + AppInfo3.app_id + "&scope=" + AppInfo3.scope;
+            var token_result = WPS3Sign_get(uri);
+            dynamic data = JObject.Parse(token_result);
+
+            var status = data.result.ToString();
+            var msg = data.msg;
+            var result = data.result;
+
+            if (status == "0")//check app_token
+            {
+                Session["token"] = data.token.app_token;
+                Session["expires_in"] = data.token.expires_in;
+                //var url = aras_PreviewLink(Session["token"].ToString(), doc_id, doc_url, fileId, fileName, vaultId, a_token);
+                var url = aras_PreviewLink(Session["token"].ToString(), doc_id, doc_url.ToString(), fileId, fileName, vaultId, a_token);
+                if (url != "Error")
+                {
+                    ViewBag.link = url;
+                    return View();
+                    // Response.Redirect(url, false);
+                }
+                else if (url == "token_Error")
+                {
+                    return Content("not get token");
+                }
+                else
+                {
+                    return Content("Error");
+                }
+            }
+            else
+            {
+                return Content(token_result);
+            }
+            return null;
+        }
+
+
+
+        public static string aras_PreviewLink(string token, string doc_id, string doc_url, string fileId, string fileName, string vaultId, string aras_token)//ing... make previewLink
+        {
+            Uri aras_url = new Uri(doc_url);
+            
+            string scheme = aras_url.Scheme; //https
+            string IdnHost = aras_url.IdnHost;//www.contoso.com
+            string path_url = aras_url.AbsolutePath;//  /Home/Index.htm
+            string query = aras_url.Query;//?q1=v1&q2=v2
+
+            string aa = "scheme=" + scheme + "<br>" + "IdnHost=" + IdnHost + "<br>" + "path_url=" + path_url + "<br>" + "query=" + query;
+            string host_url = aras_url.GetLeftPart(UriPartial.Authority);
+            //return aa;
+
+            if (token == "")
+            {
+                return "token_Error";
+            }
+            else
+            {
+                var uri = "/preview/v1/url?app_token=" + token + "&file_id=" + doc_id + "&scene_id=" + AppInfo3.developer_id + "&_w_third_aras_scheme=" + scheme + "&_w_third_aras_host="+IdnHost + "&_w_third_aras_path=" + path_url + "&_w_third_aras_query=" +query+ " &_w_third_aras_fileName=" + fileName + "&_w_third_aras_vaultId=" + vaultId + "&_w_third_aras_token=" + aras_token;//+"&_w_tokentype=1" ;
+                //var uri = "/preview/v1/url?app_token=" + token + "&file_id=" + doc_id + "&scene_id=" + AppInfo3.developer_id + "&_w_third_aras_fileName=" + fileName + "&_w_third_aras_vaultId=" + vaultId + "&_w_third_aras_token=" + aras_token;//+"&_w_tokentype=1" ;
+
+                //return uri;
+                var PreviewLink_result = WPS3Sign_get(uri);
+                //return PreviewLink_result;
+                dynamic data = JObject.Parse(PreviewLink_result);
+
+                var status = data.result.ToString();
+                var msg = data.msg;
+                var result = data.result;
+
+                if (status == "0")
+                {
+                    var link = data.url.ToString();
+
+                    return link;
+                    //return PreviewLink_result;
+                }
+                else
+                {
+                    //return Content(PreviewLink_result);
+                    return "Error";
+                }
+            }
+        }
+
+
+        public ActionResult File_info()//ing... callback Api 
+        {
+            DateTime thisDate = DateTime.Now;
+
+            string doc_id = Request.QueryString["_w_third_file_id"];
+            //string doc_url = Request.QueryString["_w_third_aras_url"];// this get aras ur;
+            string scheme = Request.QueryString["_w_third_aras_scheme"];
+            string IdnHost = Request.QueryString["_w_third_aras_host"];
+            string path_url = Request.QueryString["_w_third_aras_path"];
+            string query = Request.QueryString["_w_third_aras_query"];
+
+
+            // 以下為 被分開的uri參數
+            string fileId = Request.QueryString["_w_third_aras_fileId"];
+            var fileName = Request.QueryString["_w_third_aras_fileName"];
+            var vaultId = Request.QueryString["_w_third_aras_vaultId"];
+            var token = Request.QueryString["_w_third_aras_token"];
+
+            //var uri = doc_url + "&fileId=" + fileId + "&fileName=" + fileName + "&vaultId=" + vaultId + "&token=" + token;
+            var uri = scheme+IdnHost+path_url+query + "&fileId=" + fileId + "&fileName=" + fileName + "&vaultId=" + vaultId + "&token=" + token;
+            
+            HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://tccrm.gtocad.com/crm", "EDUatCRM", "root", "Aa123456!");
+            //HttpServerConnection cnx = IomFactory.CreateHttpServerConnection("https://tccrm.gtocad.com/crm", "NewCRM", "root", "Aa123456!");
+            Item login_result = cnx.Login();
+
+            var inn = IomFactory.CreateInnovator(cnx);
+            
+            Item f_get = inn.newItem("File", "get");
+            f_get.setProperty("id", doc_id);
+            f_get = f_get.apply();
+
+            var name = f_get.getProperty("filename", "");
+            var version = f_get.getProperty("generation", "");
+            var size = f_get.getProperty("file_size", "");
+
+            var creator = f_get.getProperty("created_by_id", "");
+
+            var a_create_time = f_get.getProperty("created_on", "");
+            DateTimeOffset createDate = Convert.ToDateTime(a_create_time);
+            long create_time = createDate.ToUnixTimeMilliseconds();
+
+            var modifier = f_get.getProperty("modified_by_id", "");
+            var a_modify_time = f_get.getProperty("modified_on", "");
+            DateTimeOffset modifyDate = Convert.ToDateTime(a_modify_time);
+            long modify_time = modifyDate.ToUnixTimeMilliseconds();
+
+            string uID = login_result.getInnovator().getUserID();
+            string uName = login_result.getInnovator().getItemById("User", uID).getProperty("keyed_name", "");
+
+            //var rest_id = "";
+            //for (int i = 3; i < fileId.Length; i++)
+            //{
+            //    rest_id += fileId[i];
+            //}
+            //var uri = "C:\\Aras\\Vault\\EDUatCRM\\" + fileId[0] + "\\" + fileId[1]+ fileId[2]+"\\"+ rest_id+"\\"+name;
+            //用Linq直接組
+            var result = new
+            {
+                file = new
+                {
+                    id = doc_id,	 			//文件id,字串長度小於32
+                    name = name,				//文件名(必須帶文件後綴)
+                    version = version,				        //當前版本號，位數小於11
+                    size = size,				        //文件大小，單位為B(文件真實大小，否則會出現異常)
+                    creator = creator,			        	//創建者id，字符串長度小於32
+                    create_time = create_time,			//創建時間，時間戳，單位為秒
+                    modifier = modifier,			    	//修改者id，字符串長度小於32
+                    modify_time = modify_time,			//修改時間，時間戳，單位為秒
+                    download_url = uri,  //文檔下載地址
+                    preview_pages = 1,   //限制預覽頁數
+
+                    user_acl = new
+                    {
+                        rename = 1,     //重命名權限，1為打開該權限，0為關閉該權限，默認為0
+                        history = 1,    //歷史版本權限，1為打開該權限，0為關閉該權限,默認為1
+                        copy = 1,       //複製
+                        export = 1,     //導出PDF
+                        print = 1       //列印
+                    },
+                    watermark = new
+                    {
+                        type = 1,		 		//浮水印類型， 0為無水印； 1為文字水印
+                        value = "禁止傳閱",  		          //文字水印的文字，當type為1時此字段必選
+                        fillstyle = "rgba( 192, 192, 192, 0.6 )",     //水印的透明度，非必選，有默認值
+                        font = "bold 20px Serif",		//水印的字體，非必選，有默認值
+                        rotate = -0.7853982,			//水印的旋轉度，非必選，有默認值
+                        horizontal = 50,			 //水印水平間距，非必選，有默認值
+                        vertical = 100           //水印垂直間距，非必選，有默認值
+                    }
+                },
+                user = new
+                {
+                    id = uID,				//用戶id，長度小於32
+                    name = uName,			//用戶名稱
+                    permission = "read",			//用戶操作權限，write：可編輯，read：預覽
+                    avatar_url = "http=//xxx.cn/id=1000"    //用戶頭像地址
+                }
+            };
+
+            logger.Debug("被呼叫，回傳json 日期:" + thisDate + " 傳入的query: _w_third_aras_fileId=" + doc_id + "&&_w_third_aras_url=" + uri);
+
+            //序列化為JSON字串並輸出結果
+            //Response.Write(JsonConvert.SerializeObject(result));
+            return Json(result, JsonRequestBehavior.AllowGet);
+            
+            //return Content(uri);
+        }
+
+
+        public static string WPS3Sign_get(string uri)//sccess 
+        {
+            var Url2 = AppInfo3.WPS_URL + uri;
+            Uri url = new Uri(Url2);
+
+            DateTime thisDate1 = DateTime.Now;
+            string Date = thisDate1.ToUniversalTime().ToString("r");//格式: Wed, 23 Jan 2013 06:43:08 GMT
+
+            byte[] source = Encoding.Default.GetBytes("");
+            string md5 = get_md5(source);
+            string sha1 = get_sha1(AppInfo3.app_key, md5, url, AppInfo3.Content_Type, Date);
+
+            var sign = "WPS-3:" + AppInfo3.app_id + ":" + sha1.ToLower();
+
+            var client = new RestClient(Url2);
+            client.Timeout = -1;
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("X-Auth", sign);
+            request.AddHeader("Content-MD5", md5);
+            request.AddHeader("Date", Date);
+            IRestResponse response = client.Execute(request);
+
+            return response.Content;
+        }
+
+        public static string get_md5(byte[] body)// md5加密
+        {
+            MD5 MD5_f = MD5.Create();
+            string contentMd5;
+            if (body != null && body.Length > 0)
+            {
+                //byte[] source = Encoding.Default.GetBytes(body);//將字串轉為Byte[]
+                byte[] source = body;
+                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
+                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
+            }
+            else
+            {
+                byte[] source = Encoding.Default.GetBytes("");
+                byte[] crypto = MD5_f.ComputeHash(source);//進行MD5加密
+                contentMd5 = BitConverter.ToString(crypto).Replace("-", String.Empty).ToLower();//把加密後的字串從Byte[]轉為字串
+            }
+            return contentMd5;
+        }
+        public static string get_sha1(string appKey, string contentMd5, Uri request_url, string contentType, string date) //Sha1加密
+        {
+            string path = request_url.LocalPath;
+            if (path.StartsWith("/open"))
+            {
+                path = path.Replace("/open", "");
+            }
+
+            string url = path;
+            string query = request_url.Query;
+            if (query != null)
+            {
+                url += query;
+            }
+            SHA1 sha1 = new SHA1CryptoServiceProvider();//建立一個SHA1
+            var str = appKey + contentMd5 + url + contentType + date;
+            byte[] source2 = Encoding.UTF8.GetBytes(str);//將字串轉為Byte[]
+            byte[] crypto2 = sha1.ComputeHash(source2);//進行SHA1加密
+            string result = BitConverter.ToString(crypto2).Replace("-", String.Empty);
+
+            return result;
+        }
+
+    }
+}
